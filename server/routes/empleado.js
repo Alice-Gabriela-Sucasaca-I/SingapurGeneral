@@ -54,14 +54,28 @@ router.put('/:id', async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
+  const connection = await pool.getConnection();
   try {
-    const [result] = await pool.execute('DELETE FROM empleado WHERE id_empleado = ?', [req.params.id]);
+    await connection.beginTransaction();
+    
+    // Primero eliminar los registros de empleado_turno
+    await connection.execute('DELETE FROM empleado_turno WHERE id_empleado = ?', [req.params.id]);
+    
+    // Luego eliminar el empleado
+    const [result] = await connection.execute('DELETE FROM empleado WHERE id_empleado = ?', [req.params.id]);
+    
     if (result.affectedRows === 0) {
+      await connection.rollback();
       return res.status(404).json({ error: 'Empleado no encontrado' });
     }
+    
+    await connection.commit();
     res.json({ message: 'Empleado eliminado exitosamente' });
   } catch (error) {
+    await connection.rollback();
     res.status(500).json({ error: error.message });
+  } finally {
+    connection.release();
   }
 });
 

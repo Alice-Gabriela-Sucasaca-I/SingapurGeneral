@@ -67,9 +67,10 @@ router.post('/', async (req, res) => {
     const pagoId = pagoResult.insertId;
     
     if (tipo_pago === 'efectivo' && detalle) {
+      const cambio = parseFloat(detalle.cambio) || 0;
       await connection.execute(
         'INSERT INTO efectivo (id_pago, cambio) VALUES (?, ?)',
-        [pagoId, detalle.cambio || 0]
+        [pagoId, cambio]
       );
     } else if (tipo_pago === 'tarjeta' && detalle) {
       await connection.execute(
@@ -135,4 +136,3 @@ router.delete('/:id', async (req, res) => {
 });
 
 module.exports = router;
-

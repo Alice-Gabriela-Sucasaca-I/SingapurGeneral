@@ -101,36 +101,79 @@ router.post('/', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
+  const connection = await pool.getConnection();
   try {
-    const { estado, total } = req.body;
+    await connection.beginTransaction();
+    
+    const { estado, detalles, id_mesa, id_cliente, id_empleado } = req.body;
     const updates = [];
     const values = [];
     
+    // Actualizar campos básicos
     if (estado !== undefined) {
       updates.push('estado = ?');
       values.push(estado);
     }
-    if (total !== undefined) {
+    if (id_mesa !== undefined) {
+      updates.push('id_mesa = ?');
+      values.push(id_mesa);
+    }
+    if (id_cliente !== undefined) {
+      updates.push('id_cliente = ?');
+      values.push(id_cliente);
+    }
+    if (id_empleado !== undefined) {
+      updates.push('id_empleado = ?');
+      values.push(id_empleado);
+    }
+    
+    let total = 0;
+    if (detalles && detalles.length > 0) {
+      total = detalles.reduce((sum, det) => sum + (det.cantidad * det.precio_unitario), 0);
       updates.push('total = ?');
       values.push(total);
+      
+      updates.push('fecha_hora = DATE_SUB(NOW(), INTERVAL 5 HOUR)');
     }
     
     if (updates.length === 0) {
+      await connection.rollback();
       return res.status(400).json({ error: 'No hay campos para actualizar' });
     }
     
     values.push(req.params.id);
-    const [result] = await pool.execute(
+    const [result] = await connection.execute(
       `UPDATE orden SET ${updates.join(', ')} WHERE id_orden = ?`,
       values
     );
     
     if (result.affectedRows === 0) {
+      await connection.rollback();
       return res.status(404).json({ error: 'Orden no encontrada' });
     }
-    res.json({ message: 'Orden actualizada exitosamente' });
+    
+    // Si hay detalles, actualizar orden_detalle
+    if (detalles && detalles.length > 0) {
+      // Eliminar detalles anteriores
+      await connection.execute('DELETE FROM orden_detalle WHERE id_orden = ?', [req.params.id]);
+      
+      // Insertar nuevos detalles
+      for (let i = 0; i < detalles.length; i++) {
+        const det = detalles[i];
+        await connection.execute(
+          'INSERT INTO orden_detalle (id_orden, sec_detalle, cantidad, precio_unitario, sub_total, id_producto) VALUES (?, ?, ?, ?, ?, ?)',
+          [req.params.id, i + 1, det.cantidad, det.precio_unitario, det.cantidad * det.precio_unitario, det.id_producto]
+        );
+      }
+    }
+    
+    await connection.commit();
+    res.json({ message: 'Orden actualizada exitosamente', total });
   } catch (error) {
+    await connection.rollback();
     res.status(500).json({ error: error.message });
+  } finally {
+    connection.release();
   }
 });
 
