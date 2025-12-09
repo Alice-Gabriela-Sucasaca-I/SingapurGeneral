@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ordenService, mesaService, clienteService, empleadoService, productoService } from '../../services/api';
 import Table from '../../components/Table/Table';
 import Modal from '../../components/Modal/Modal';
+import { exportToExcel } from '../../utils/excelExport';
 import '../styles/Page.css';
 
 const Ordenes: React.FC = () => {
@@ -83,9 +84,20 @@ const Ordenes: React.FC = () => {
     }
     try {
       if (editing) {
-        await ordenService.update(editing.id_orden, { estado: formData.estado });
+        // Al actualizar, enviar todos los datos incluidos los detalles
+        await ordenService.update(editing.id_orden, {
+          estado: formData.estado,
+          id_mesa: formData.id_mesa,
+          id_cliente: formData.id_cliente,
+          id_empleado: formData.id_empleado,
+          detalles: formData.detalles,
+        });
       } else {
-        await ordenService.create(formData);
+        // Al crear, enviar fecha_hora
+        await ordenService.create({
+          ...formData,
+          fecha_hora: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        });
       }
       setModalOpen(false);
       resetForm();
@@ -96,14 +108,19 @@ const Ordenes: React.FC = () => {
     }
   };
 
-  const handleEdit = async (orden: any) => {
+const handleEdit = async (orden: any) => {
     try {
       const response = await ordenService.getById(orden.id_orden);
       const ordenData = response.data.orden;
       const detalles = response.data.detalles;
+      
+      const ahora = new Date();
+      ahora.setHours(ahora.getHours() - 5);
+      const fechaLocal = ahora.toISOString().slice(0, 16);
+      
       setEditing(orden);
       setFormData({
-        fecha_hora: ordenData.fecha_hora,
+        fecha_hora: fechaLocal,
         estado: ordenData.estado,
         id_mesa: ordenData.id_mesa,
         id_cliente: ordenData.id_cliente,
@@ -198,9 +215,17 @@ const Ordenes: React.FC = () => {
     <div className="page">
       <div className="page-header">
         <h2>Gestión de Órdenes</h2>
-        <button className="btn btn-primary" onClick={() => { resetForm(); setModalOpen(true); }}>
-          + Nueva Orden
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button 
+            className="btn btn-success" 
+            onClick={() => exportToExcel(ordenes, 'ordenes')}
+          >
+            ⬇ Descargar Excel
+          </button>
+          <button className="btn btn-primary" onClick={() => { resetForm(); setModalOpen(true); }}>
+            + Nueva Orden
+          </button>
+        </div>
       </div>
       <Table
         columns={columns}

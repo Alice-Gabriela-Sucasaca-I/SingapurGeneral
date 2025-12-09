@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { mesaService } from '../../services/api';
 import Modal from '../../components/Modal/Modal';
+import { exportToExcel } from '../../utils/excelExport';
 import '../styles/Page.css';
 import '../styles/Mesas.css';
 
@@ -110,9 +111,17 @@ const Mesas: React.FC = () => {
     <div className="page">
       <div className="page-header">
         <h2>Gestión de Mesas</h2>
-        <button className="btn btn-primary" onClick={() => { resetForm(); setModalOpen(true); }}>
-          + Nueva Mesa
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button 
+            className="btn btn-success" 
+            onClick={() => exportToExcel(mesas, 'mesas')}
+          >
+            ⬇ Descargar Excel
+          </button>
+          <button className="btn btn-primary" onClick={() => { resetForm(); setModalOpen(true); }}>
+            + Nueva Mesa
+          </button>
+        </div>
       </div>
 
       <div className="mesas-grid">

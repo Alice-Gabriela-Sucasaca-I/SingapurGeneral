@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { productoService, categoriaProductoService } from '../../services/api';
 import Modal from '../../components/Modal/Modal';
+import { exportToExcel } from '../../utils/excelExport';
 import '../styles/Page.css';
 import '../styles/Productos.css';
 
@@ -107,9 +108,17 @@ const Productos: React.FC = () => {
     <div className="page">
       <div className="page-header">
         <h2>Gestión de Productos</h2>
-        <button className="btn btn-primary" onClick={() => { resetForm(); setModalOpen(true); }}>
-          + Nuevo Producto
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button 
+            className="btn btn-success" 
+            onClick={() => exportToExcel(productos, 'productos')}
+          >
+            ⬇ Descargar Excel
+          </button>
+          <button className="btn btn-primary" onClick={() => { resetForm(); setModalOpen(true); }}>
+            + Nuevo Producto
+          </button>
+        </div>
       </div>
 
       <div className="productos-grid">

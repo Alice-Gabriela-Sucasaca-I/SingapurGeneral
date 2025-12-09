@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { turnoService } from '../../services/api';
 import Table from '../../components/Table/Table';
 import Modal from '../../components/Modal/Modal';
+import { exportToExcel } from '../../utils/excelExport';
 import '../styles/Page.css';
 
 const Turnos: React.FC = () => {
@@ -85,9 +86,17 @@ const Turnos: React.FC = () => {
     <div className="page">
       <div className="page-header">
         <h2>Gestión de Turnos</h2>
-        <button className="btn btn-primary" onClick={() => { resetForm(); setModalOpen(true); }}>
-          + Nuevo Turno
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button 
+            className="btn btn-success" 
+            onClick={() => exportToExcel(turnos, 'turnos')}
+          >
+            ⬇ Descargar Excel
+          </button>
+          <button className="btn btn-primary" onClick={() => { resetForm(); setModalOpen(true); }}>
+            + Nuevo Turno
+          </button>
+        </div>
       </div>
       <Table
         columns={columns}

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { pagoService, ordenService } from '../../services/api';
 import Table from '../../components/Table/Table';
 import Modal from '../../components/Modal/Modal';
+import { exportToExcel } from '../../utils/excelExport';
 import '../styles/Page.css';
 
 const Pagos: React.FC = () => {
@@ -9,6 +10,7 @@ const Pagos: React.FC = () => {
   const [ordenes, setOrdenes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [montoRecibido, setMontoRecibido] = useState('');
   const [formData, setFormData] = useState({
     id_orden: '',
     total_pago: '',
@@ -81,6 +83,7 @@ const Pagos: React.FC = () => {
         imagen_qr: '',
       },
     });
+    setMontoRecibido('');
   };
 
   const handleOrdenChange = (ordenId: string) => {
@@ -88,6 +91,21 @@ const Pagos: React.FC = () => {
     if (orden) {
       setFormData({ ...formData, id_orden: ordenId, total_pago: orden.total });
     }
+  };
+
+  const handleMontoRecibidoChange = (valor: string) => {
+    setMontoRecibido(valor);
+    const recibido = parseFloat(valor) || 0;
+    const totalPago = parseFloat(formData.total_pago) || 0;
+    const cambio = recibido - totalPago;
+    
+    setFormData({
+      ...formData,
+      detalle: { 
+        ...formData.detalle, 
+        cambio: cambio >= 0 ? cambio.toFixed(2) : '0' 
+      },
+    });
   };
 
   const columns = [
@@ -138,9 +156,17 @@ const Pagos: React.FC = () => {
     <div className="page">
       <div className="page-header">
         <h2>Gestión de Pagos</h2>
-        <button className="btn btn-primary" onClick={() => { resetForm(); setModalOpen(true); }}>
-          + Nuevo Pago
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button 
+            className="btn btn-success" 
+            onClick={() => exportToExcel(pagos, 'pagos')}
+          >
+            ⬇ Descargar Excel
+          </button>
+          <button className="btn btn-primary" onClick={() => { resetForm(); setModalOpen(true); }}>
+            + Nuevo Pago
+          </button>
+        </div>
       </div>
       <Table
         columns={columns}
@@ -220,20 +246,31 @@ const Pagos: React.FC = () => {
             </div>
           </div>
           {formData.tipo_pago === 'efectivo' && (
-            <div className="form-group">
-              <label className="form-label">Cambio</label>
-              <input
-                type="number"
-                step="0.01"
-                className="form-input"
-                value={formData.detalle.cambio}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  detalle: { ...formData.detalle, cambio: e.target.value },
-                })}
-                min="0"
-              />
-            </div>
+            <>
+              <div className="form-group">
+                <label className="form-label">Monto Recibido</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="form-input"
+                  value={montoRecibido}
+                  onChange={(e) => handleMontoRecibidoChange(e.target.value)}
+                  min="0"
+                  placeholder="Ingrese el monto recibido del cliente"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Cambio</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="form-input"
+                  value={formData.detalle.cambio}
+                  readOnly
+                  style={{ backgroundColor: '#211e2cff', cursor: 'not-allowed' }}
+                />
+              </div>
+            </>
           )}
           {formData.tipo_pago === 'tarjeta' && (
             <>
@@ -296,4 +333,3 @@ const Pagos: React.FC = () => {
 };
 
 export default Pagos;
-

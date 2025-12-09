@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { clienteService } from '../../services/api';
 import Table from '../../components/Table/Table';
 import Modal from '../../components/Modal/Modal';
+import { exportToExcel } from '../../utils/excelExport';
 import '../styles/Page.css';
 
 const Clientes: React.FC = () => {
@@ -164,9 +165,17 @@ const Clientes: React.FC = () => {
     <div className="page">
       <div className="page-header">
         <h2>Gestión de Clientes</h2>
-        <button className="btn btn-primary" onClick={() => { resetForm(); setModalOpen(true); }}>
-          + Nuevo Cliente
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button 
+            className="btn btn-success" 
+            onClick={() => exportToExcel(clientes, 'clientes')}
+          >
+            ⬇ Descargar Excel
+          </button>
+          <button className="btn btn-primary" onClick={() => { resetForm(); setModalOpen(true); }}>
+            + Nuevo Cliente
+          </button>
+        </div>
       </div>
       <Table
         columns={columns}

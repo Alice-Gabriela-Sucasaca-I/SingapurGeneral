@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { categoriaProductoService } from '../../services/api';
 import Table from '../../components/Table/Table';
 import Modal from '../../components/Modal/Modal';
+import { exportToExcel } from '../../utils/excelExport';
 import '../styles/Page.css';
 
 const Categorias: React.FC = () => {
@@ -82,9 +83,17 @@ const Categorias: React.FC = () => {
     <div className="page">
       <div className="page-header">
         <h2>Gestión de Categorías</h2>
-        <button className="btn btn-primary" onClick={() => { resetForm(); setModalOpen(true); }}>
-          + Nueva Categoría
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button 
+            className="btn btn-success" 
+            onClick={() => exportToExcel(categorias, 'categorias')}
+          >
+            ⬇ Descargar Excel
+          </button>
+          <button className="btn btn-primary" onClick={() => { resetForm(); setModalOpen(true); }}>
+            + Nueva Categoría
+          </button>
+        </div>
       </div>
       <Table
         columns={columns}
