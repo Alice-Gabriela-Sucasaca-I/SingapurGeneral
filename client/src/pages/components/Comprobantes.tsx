@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { comprobanteService, pagoService, ordenService } from '../../services/api';
+import { generarComprobantePDF } from '../../utils/pdfGenerator';
 import Table from '../../components/Table/Table';
 import Modal from '../../components/Modal/Modal';
 import { exportToExcel } from '../../utils/excelExport';
@@ -61,6 +62,16 @@ const Comprobantes: React.FC = () => {
       }
     }
   };
+const handleDownload = async (comprobante: any) => {
+  try {
+    const res = await comprobanteService.getById(comprobante.id_comprobante);
+    console.log('Datos recibidos del backend:', res.data); 
+    generarComprobantePDF(res.data);
+  } catch (error) {
+    console.error('Error completo:', error); 
+    alert('Error al generar PDF del comprobante');
+  }
+};
 
   const resetForm = () => {
     setFormData({
@@ -103,6 +114,30 @@ const Comprobantes: React.FC = () => {
       label: 'Tipo',
       render: (value: any) => value.toUpperCase(),
     },
+    {
+      key: 'acciones',
+      label: 'Acciones',
+      render: (_: any, row: any) => (
+        <div style={{ display: 'flex', gap: '0.25rem' }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => handleDownload(row)}
+            title="Descargar PDF"
+          >
+            📄
+          </button>
+          <button
+            type="button"
+            className="btn btn-danger"
+            onClick={() => handleDelete(row)}
+            title="Eliminar"
+          >
+            🗑️
+          </button>
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -124,7 +159,6 @@ const Comprobantes: React.FC = () => {
       <Table
         columns={columns}
         data={comprobantes}
-        onDelete={handleDelete}
         loading={loading}
       />
       <Modal

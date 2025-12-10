@@ -25,6 +25,7 @@ const Clientes: React.FC = () => {
     telefono: '',
     ruc: '',
   });
+  const [errors, setErrors] = useState<any>({});
 
   useEffect(() => {
     loadClientes();
@@ -41,8 +42,53 @@ const Clientes: React.FC = () => {
     }
   };
 
+  const validateDNI = (dni: string): boolean => {
+    if (dni.length !== 8) return false;
+    return /^\d{8}$/.test(dni);
+  };
+
+  const validateRUC = (ruc: string): boolean => {
+    if (ruc.length !== 11) return false;
+    if (!ruc.startsWith('10') && !ruc.startsWith('20')) return false;
+    return /^\d{11}$/.test(ruc);
+  };
+
+  const validateCelular = (celular: string): boolean => {
+    if (celular.length !== 9) return false;
+    if (!celular.startsWith('9')) return false;
+    return /^\d{9}$/.test(celular);
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: any = {};
+
+    if (formData.tipo === 'persona') {
+      if (!validateDNI(formData.dni)) {
+        newErrors.dni = 'DNI debe tener exactamente 8 dígitos';
+      }
+      if (!validateCelular(formData.nro_celular)) {
+        newErrors.nro_celular = 'Celular debe tener 9 dígitos y empezar con 9';
+      }
+    } else {
+      if (!validateRUC(formData.ruc)) {
+        newErrors.ruc = 'RUC debe tener 11 dígitos y empezar con 10 o 20';
+      }
+      if (!validateCelular(formData.telefono)) {
+        newErrors.telefono = 'Teléfono debe tener 9 dígitos y empezar con 9';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
     try {
       const data: any = { tipo: formData.tipo };
       if (formData.tipo === 'persona') {
@@ -120,7 +166,16 @@ const Clientes: React.FC = () => {
       telefono: '',
       ruc: '',
     });
+    setErrors({});
     setEditing(null);
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData({ ...formData, [field]: value });
+  
+    if (errors[field]) {
+      setErrors({ ...errors, [field]: undefined });
+    }
   };
 
   const columns = [
@@ -153,6 +208,11 @@ const Clientes: React.FC = () => {
           </div>
         );
       },
+    },
+    {
+      key: 'documento',
+      label: 'DNI/RUC',
+      render: (value: any, row: any) => row.dni || row.ruc || '-',
     },
     {
       key: 'contacto',
@@ -195,7 +255,10 @@ const Clientes: React.FC = () => {
             <select
               className="form-select"
               value={formData.tipo}
-              onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
+              onChange={(e) => {
+                setFormData({ ...formData, tipo: e.target.value });
+                setErrors({});
+              }}
             >
               <option value="persona">Persona</option>
               <option value="empresa">Empresa</option>
@@ -209,7 +272,7 @@ const Clientes: React.FC = () => {
                   type="text"
                   className="form-input"
                   value={formData.nombre}
-                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                  onChange={(e) => handleInputChange('nombre', e.target.value)}
                   required
                 />
               </div>
@@ -220,7 +283,7 @@ const Clientes: React.FC = () => {
                     type="text"
                     className="form-input"
                     value={formData.apellido_paterno}
-                    onChange={(e) => setFormData({ ...formData, apellido_paterno: e.target.value })}
+                    onChange={(e) => handleInputChange('apellido_paterno', e.target.value)}
                     required
                   />
                 </div>
@@ -230,7 +293,7 @@ const Clientes: React.FC = () => {
                     type="text"
                     className="form-input"
                     value={formData.apellido_materno}
-                    onChange={(e) => setFormData({ ...formData, apellido_materno: e.target.value })}
+                    onChange={(e) => handleInputChange('apellido_materno', e.target.value)}
                     required
                   />
                 </div>
@@ -242,10 +305,13 @@ const Clientes: React.FC = () => {
                     type="text"
                     className="form-input"
                     value={formData.dni}
-                    onChange={(e) => setFormData({ ...formData, dni: e.target.value })}
+                    onChange={(e) => handleInputChange('dni', e.target.value.replace(/\D/g, '').slice(0, 8))}
                     required
                     maxLength={8}
+                    placeholder="8 dígitos"
+                    style={{ borderColor: errors.dni ? 'var(--error)' : undefined }}
                   />
+                  {errors.dni && <span style={{ color: 'var(--error)', fontSize: '0.875rem' }}>{errors.dni}</span>}
                 </div>
                 <div className="form-group">
                   <label className="form-label">Celular</label>
@@ -253,10 +319,13 @@ const Clientes: React.FC = () => {
                     type="text"
                     className="form-input"
                     value={formData.nro_celular}
-                    onChange={(e) => setFormData({ ...formData, nro_celular: e.target.value })}
+                    onChange={(e) => handleInputChange('nro_celular', e.target.value.replace(/\D/g, '').slice(0, 9))}
                     required
                     maxLength={9}
+                    placeholder="9 dígitos (ej: 987654321)"
+                    style={{ borderColor: errors.nro_celular ? 'var(--error)' : undefined }}
                   />
+                  {errors.nro_celular && <span style={{ color: 'var(--error)', fontSize: '0.875rem' }}>{errors.nro_celular}</span>}
                 </div>
               </div>
               <div className="form-group">
@@ -265,7 +334,7 @@ const Clientes: React.FC = () => {
                   type="text"
                   className="form-input"
                   value={formData.direccion}
-                  onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
+                  onChange={(e) => handleInputChange('direccion', e.target.value)}
                   required
                 />
               </div>
@@ -278,7 +347,7 @@ const Clientes: React.FC = () => {
                   type="text"
                   className="form-input"
                   value={formData.razon_social}
-                  onChange={(e) => setFormData({ ...formData, razon_social: e.target.value })}
+                  onChange={(e) => handleInputChange('razon_social', e.target.value)}
                   required
                 />
               </div>
@@ -289,10 +358,13 @@ const Clientes: React.FC = () => {
                     type="text"
                     className="form-input"
                     value={formData.ruc}
-                    onChange={(e) => setFormData({ ...formData, ruc: e.target.value })}
+                    onChange={(e) => handleInputChange('ruc', e.target.value.replace(/\D/g, '').slice(0, 11))}
                     required
                     maxLength={11}
+                    placeholder="11 dígitos (ej: 20123456789)"
+                    style={{ borderColor: errors.ruc ? 'var(--error)' : undefined }}
                   />
+                  {errors.ruc && <span style={{ color: 'var(--error)', fontSize: '0.875rem' }}>{errors.ruc}</span>}
                 </div>
                 <div className="form-group">
                   <label className="form-label">Teléfono</label>
@@ -300,10 +372,13 @@ const Clientes: React.FC = () => {
                     type="text"
                     className="form-input"
                     value={formData.telefono}
-                    onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                    onChange={(e) => handleInputChange('telefono', e.target.value.replace(/\D/g, '').slice(0, 9))}
                     required
                     maxLength={9}
+                    placeholder="9 dígitos (ej: 987654321)"
+                    style={{ borderColor: errors.telefono ? 'var(--error)' : undefined }}
                   />
+                  {errors.telefono && <span style={{ color: 'var(--error)', fontSize: '0.875rem' }}>{errors.telefono}</span>}
                 </div>
               </div>
               <div className="form-group">
@@ -312,7 +387,7 @@ const Clientes: React.FC = () => {
                   type="text"
                   className="form-input"
                   value={formData.direccion_empresa}
-                  onChange={(e) => setFormData({ ...formData, direccion_empresa: e.target.value })}
+                  onChange={(e) => handleInputChange('direccion_empresa', e.target.value)}
                   required
                 />
               </div>
@@ -333,4 +408,3 @@ const Clientes: React.FC = () => {
 };
 
 export default Clientes;
-

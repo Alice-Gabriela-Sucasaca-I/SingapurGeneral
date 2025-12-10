@@ -2,6 +2,23 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
 
+
+const validateDNI = (dni) => {
+  return /^\d{8}$/.test(dni);
+};
+
+const validateRUC = (ruc) => {
+  if (!/^\d{11}$/.test(ruc)) return false;
+  if (!ruc.startsWith('10') && !ruc.startsWith('20')) return false;
+  return true;
+};
+
+const validateCelular = (celular) => {
+  if (!/^\d{9}$/.test(celular)) return false;
+  if (!celular.startsWith('9')) return false;
+  return true;
+};
+
 router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.execute(`
@@ -13,7 +30,7 @@ router.get('/', async (req, res) => {
       FROM cliente c
       LEFT JOIN persona p ON c.id_cliente = p.id_cliente
       LEFT JOIN empresa e ON c.id_cliente = e.id_cliente
-      ORDER BY c.id_cliente
+      ORDER BY c.id_cliente DESC
     `);
     res.json(rows);
   } catch (error) {
@@ -49,6 +66,47 @@ router.post('/', async (req, res) => {
     await connection.beginTransaction();
     
     const { tipo } = req.body;
+    
+
+    if (tipo === 'persona') {
+      const { dni, nro_celular } = req.body;
+      
+      if (!validateDNI(dni)) {
+        await connection.rollback();
+        return res.status(400).json({ error: 'DNI debe tener exactamente 8 dígitos' });
+      }
+      
+      if (!validateCelular(nro_celular)) {
+        await connection.rollback();
+        return res.status(400).json({ error: 'Celular debe tener 9 dígitos y empezar con 9' });
+      }
+      
+
+      const [existingDNI] = await connection.execute('SELECT id_cliente FROM persona WHERE dni = ?', [dni]);
+      if (existingDNI.length > 0) {
+        await connection.rollback();
+        return res.status(400).json({ error: 'Ya existe un cliente con este DNI' });
+      }
+    } else if (tipo === 'empresa') {
+      const { ruc, telefono } = req.body;
+      
+      if (!validateRUC(ruc)) {
+        await connection.rollback();
+        return res.status(400).json({ error: 'RUC debe tener 11 dígitos y empezar con 10 o 20' });
+      }
+      
+      if (!validateCelular(telefono)) {
+        await connection.rollback();
+        return res.status(400).json({ error: 'Teléfono debe tener 9 dígitos y empezar con 9' });
+      }
+      
+
+      const [existingRUC] = await connection.execute('SELECT id_cliente FROM empresa WHERE ruc = ?', [ruc]);
+      if (existingRUC.length > 0) {
+        await connection.rollback();
+        return res.status(400).json({ error: 'Ya existe un cliente con este RUC' });
+      }
+    }
     
     const [clienteResult] = await connection.execute(
       'INSERT INTO cliente (tipo) VALUES (?)',
@@ -86,6 +144,53 @@ router.put('/:id', async (req, res) => {
     await connection.beginTransaction();
     
     const { tipo } = req.body;
+    
+
+    if (tipo === 'persona') {
+      const { dni, nro_celular } = req.body;
+      
+      if (!validateDNI(dni)) {
+        await connection.rollback();
+        return res.status(400).json({ error: 'DNI debe tener exactamente 8 dígitos' });
+      }
+      
+      if (!validateCelular(nro_celular)) {
+        await connection.rollback();
+        return res.status(400).json({ error: 'Celular debe tener 9 dígitos y empezar con 9' });
+      }
+      
+
+      const [existingDNI] = await connection.execute(
+        'SELECT id_cliente FROM persona WHERE dni = ? AND id_cliente != ?',
+        [dni, req.params.id]
+      );
+      if (existingDNI.length > 0) {
+        await connection.rollback();
+        return res.status(400).json({ error: 'Ya existe otro cliente con este DNI' });
+      }
+    } else if (tipo === 'empresa') {
+      const { ruc, telefono } = req.body;
+      
+      if (!validateRUC(ruc)) {
+        await connection.rollback();
+        return res.status(400).json({ error: 'RUC debe tener 11 dígitos y empezar con 10 o 20' });
+      }
+      
+      if (!validateCelular(telefono)) {
+        await connection.rollback();
+        return res.status(400).json({ error: 'Teléfono debe tener 9 dígitos y empezar con 9' });
+      }
+      
+     
+      const [existingRUC] = await connection.execute(
+        'SELECT id_cliente FROM empresa WHERE ruc = ? AND id_cliente != ?',
+        [ruc, req.params.id]
+      );
+      if (existingRUC.length > 0) {
+        await connection.rollback();
+        return res.status(400).json({ error: 'Ya existe otro cliente con este RUC' });
+      }
+    }
     
     await connection.execute(
       'UPDATE cliente SET tipo = ? WHERE id_cliente = ?',
@@ -139,11 +244,9 @@ router.delete('/:id', async (req, res) => {
   try {
     await connection.beginTransaction();
     
-    // Primero eliminar los datos de persona y empresa relacionados
     await connection.execute('DELETE FROM persona WHERE id_cliente = ?', [req.params.id]);
     await connection.execute('DELETE FROM empresa WHERE id_cliente = ?', [req.params.id]);
     
-    // Luego eliminar el cliente
     const [result] = await connection.execute('DELETE FROM cliente WHERE id_cliente = ?', [req.params.id]);
     
     if (result.affectedRows === 0) {
@@ -162,4 +265,3 @@ router.delete('/:id', async (req, res) => {
 });
 
 module.exports = router;
-

@@ -66,20 +66,33 @@ router.post('/', async (req, res) => {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
-    
+
     const { fecha_hora, estado, id_mesa, id_cliente, id_empleado, detalles } = req.body;
-    
+
+    // Verificar que la mesa exista y esté disponible
+    const [mesaRows] = await connection.execute('SELECT disponibilidad FROM mesa WHERE id_mesa = ?', [id_mesa]);
+    if (mesaRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ error: 'Mesa no encontrada' });
+    }
+    // disponibilidad puede ser 0/1 o boolean; tratamos 0/false como ocupada
+    const disponibilidad = mesaRows[0].disponibilidad;
+    if (disponibilidad === 0 || disponibilidad === false || disponibilidad === '0') {
+      await connection.rollback();
+      return res.status(400).json({ error: 'La mesa está ocupada' });
+    }
+
     let total = 0;
     if (detalles && detalles.length > 0) {
       total = detalles.reduce((sum, det) => sum + (det.cantidad * det.precio_unitario), 0);
     }
-    
+
     const [ordenResult] = await connection.execute(
       'INSERT INTO orden (fecha_hora, total, estado, id_mesa, id_cliente, id_empleado) VALUES (?, ?, ?, ?, ?, ?)',
       [fecha_hora || new Date(), total, estado || 'pendiente', id_mesa, id_cliente, id_empleado]
     );
     const ordenId = ordenResult.insertId;
-    
+
     if (detalles && detalles.length > 0) {
       for (let i = 0; i < detalles.length; i++) {
         const det = detalles[i];
@@ -89,7 +102,10 @@ router.post('/', async (req, res) => {
         );
       }
     }
-    
+
+    // Marcar mesa como ocupada (0)
+    await connection.execute('UPDATE mesa SET disponibilidad = ? WHERE id_mesa = ?', [0, id_mesa]);
+
     await connection.commit();
     res.status(201).json({ id: ordenId, message: 'Orden creada exitosamente', total });
   } catch (error) {
@@ -109,7 +125,6 @@ router.put('/:id', async (req, res) => {
     const updates = [];
     const values = [];
     
-    // Actualizar campos básicos
     if (estado !== undefined) {
       updates.push('estado = ?');
       values.push(estado);
@@ -152,12 +167,12 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Orden no encontrada' });
     }
     
-    // Si hay detalles, actualizar orden_detalle
+ 
     if (detalles && detalles.length > 0) {
-      // Eliminar detalles anteriores
+
       await connection.execute('DELETE FROM orden_detalle WHERE id_orden = ?', [req.params.id]);
       
-      // Insertar nuevos detalles
+  
       for (let i = 0; i < detalles.length; i++) {
         const det = detalles[i];
         await connection.execute(
@@ -181,16 +196,29 @@ router.delete('/:id', async (req, res) => {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
-    
+
+    // Obtener la orden para saber la mesa asociada
+    const [ordenRows] = await connection.execute('SELECT id_mesa FROM orden WHERE id_orden = ?', [req.params.id]);
+    if (ordenRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ error: 'Orden no encontrada' });
+    }
+    const id_mesa = ordenRows[0].id_mesa;
+
+    // Eliminar detalles
     await connection.execute('DELETE FROM orden_detalle WHERE id_orden = ?', [req.params.id]);
-    
+
+    // Eliminar la orden
     const [result] = await connection.execute('DELETE FROM orden WHERE id_orden = ?', [req.params.id]);
-    
+
     if (result.affectedRows === 0) {
       await connection.rollback();
       return res.status(404).json({ error: 'Orden no encontrada' });
     }
-    
+
+    // Liberar la mesa asociada
+    await connection.execute('UPDATE mesa SET disponibilidad = ? WHERE id_mesa = ?', [1, id_mesa]);
+
     await connection.commit();
     res.json({ message: 'Orden eliminada exitosamente' });
   } catch (error) {

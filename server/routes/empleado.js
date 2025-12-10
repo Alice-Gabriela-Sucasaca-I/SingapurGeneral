@@ -58,10 +58,10 @@ router.delete('/:id', async (req, res) => {
   try {
     await connection.beginTransaction();
     
-    // Primero eliminar los registros de empleado_turno
+
     await connection.execute('DELETE FROM empleado_turno WHERE id_empleado = ?', [req.params.id]);
     
-    // Luego eliminar el empleado
+
     const [result] = await connection.execute('DELETE FROM empleado WHERE id_empleado = ?', [req.params.id]);
     
     if (result.affectedRows === 0) {

@@ -84,7 +84,6 @@ const Ordenes: React.FC = () => {
     }
     try {
       if (editing) {
-        // Al actualizar, enviar todos los datos incluidos los detalles
         await ordenService.update(editing.id_orden, {
           estado: formData.estado,
           id_mesa: formData.id_mesa,
@@ -93,7 +92,7 @@ const Ordenes: React.FC = () => {
           detalles: formData.detalles,
         });
       } else {
-        // Al crear, enviar fecha_hora
+  
         await ordenService.create({
           ...formData,
           fecha_hora: new Date().toISOString().slice(0, 19).replace('T', ' '),
@@ -276,11 +275,13 @@ const handleEdit = async (orden: any) => {
                 required
               >
                 <option value="">Seleccionar mesa</option>
+                
                 {mesas.map((mesa) => (
                   <option key={mesa.id_mesa} value={mesa.id_mesa}>
                     Mesa {mesa.numero} ({mesa.capacidad} personas)
                   </option>
                 ))}
+              
               </select>
             </div>
             <div className="form-group">
